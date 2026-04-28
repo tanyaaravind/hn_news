@@ -1,0 +1,11 @@
+.env
+.vscode/
+outputs/
+
+__pycache__/
+*.pyc
+
+venv/
+.env.*
+
+.python-version
