@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HN Daily</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f7;
+    --surface: rgba(255,255,255,0.72);
+    --surface-solid: #ffffff;
+    --text-primary: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-tertiary: #aeaeb2;
+    --border: rgba(0,0,0,0.08);
+    --radius: 18px;
+    --radius-sm: 12px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding: 60px 24px 80px;
+  }
+
+  /* ─── Ambient background glow ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 900px; height: 600px;
+    background: radial-gradient(ellipse at center,
+      rgba(120,160,255,0.12) 0%,
+      rgba(200,120,255,0.08) 40%,
+      transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 560px;
+    background: var(--surface);
+    backdrop-filter: blur(40px) saturate(1.8);
+    -webkit-backdrop-filter: blur(40px) saturate(1.8);
+    border: 1px solid var(--border);
+    border-radius: 28px;
+    padding: 52px 48px 48px;
+    box-shadow:
+      0 2px 1px rgba(255,255,255,0.8) inset,
+      0 20px 60px rgba(0,0,0,0.06),
+      0 1px 0 rgba(255,255,255,0.9);
+  }
+
+  /* ─── Header ─── */
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 42px;
+    font-weight: 300;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  h1 strong {
+    font-weight: 600;
+  }
+
+  .subtitle {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 40px;
+    font-weight: 400;
+  }
+
+  /* ─── Fields ─── */
+  .field {
+    margin-bottom: 16px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  input[type="text"],
+  textarea {
+    width: 100%;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    resize: none;
+  }
+
+  input[type="text"]::placeholder,
+  textarea::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  input[type="text"]:focus,
+  textarea:focus {
+    border-color: rgba(100,130,255,0.4);
+    box-shadow: 0 0 0 3px rgba(100,130,255,0.08);
+  }
+
+  textarea {
+    height: 96px;
+    line-height: 1.5;
+  }
+
+  .field-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 6px;
+  }
+
+  /* ─── Rainbow button ─── */
+  .btn-wrap {
+    margin-top: 28px;
+    position: relative;
+    display: inline-block;
+    width: 100%;
+  }
+
+  /* The rainbow glow layer */
+  .btn-wrap::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 50px;
+    background: linear-gradient(
+      135deg,
+      #ff6b6b, #ffa46b, #ffe06b, #6bffb0,
+      #6bddff, #6b8cff, #c76bff, #ff6bda, #ff6b6b
+    );
+    background-size: 300% 300%;
+    animation: rainbow-shift 4s linear infinite;
+    opacity: 0;
+    transition: opacity 0.3s;
+    filter: blur(8px);
+    z-index: 0;
+  }
+
+  .btn-wrap:hover::before,
+  .btn-wrap.active::before {
+    opacity: 0.7;
+  }
+
+  /* The border ring */
+  .btn-wrap::after {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 50px;
+    background: linear-gradient(
+      135deg,
+      #ff6b6b, #ffa46b, #ffe06b, #6bffb0,
+      #6bddff, #6b8cff, #c76bff, #ff6bda, #ff6b6b
+    );
+    background-size: 300% 300%;
+    animation: rainbow-shift 4s linear infinite;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 0;
+  }
+
+  .btn-wrap:hover::after,
+  .btn-wrap.active::after {
+    opacity: 1;
+  }
+
+  @keyframes rainbow-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  button#generate {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    padding: 16px 32px;
+    border: none;
+    border-radius: 50px;
+    background: var(--text-primary);
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  button#generate:hover {
+    transform: scale(1.01);
+  }
+
+  button#generate:active {
+    transform: scale(0.99);
+    opacity: 0.85;
+  }
+
+  button#generate:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
+  }
+
+  .btn-icon {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ─── Spinner ─── */
+  .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Status panel ─── */
+  #status-panel {
+    margin-top: 28px;
+    display: none;
+  }
+
+  .status-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-bottom: 14px;
+  }
+
+  .step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    opacity: 0.3;
+    transition: opacity 0.4s;
+  }
+
+  .step:last-child { border-bottom: none; }
+
+  .step.done   { opacity: 1; }
+  .step.active { opacity: 1; }
+  .step.done .step-dot  { background: #34c759; border-color: #34c759; }
+  .step.active .step-dot {
+    background: transparent;
+    border-color: #6b8cff;
+    animation: pulse-ring 1.2s ease infinite;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(107,140,255,0.5); }
+    50%       { box-shadow: 0 0 0 5px rgba(107,140,255,0); }
+  }
+
+  .step-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    border: 2px solid var(--text-tertiary);
+    margin-top: 4px;
+    flex-shrink: 0;
+    transition: background 0.3s, border-color 0.3s;
+  }
+
+  .step-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 400;
+    line-height: 1.4;
+  }
+
+  .step-detail {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  /* ─── Done state ─── */
+  #done-panel {
+    display: none;
+    margin-top: 24px;
+    background: rgba(52,199,89,0.06);
+    border: 1px solid rgba(52,199,89,0.2);
+    border-radius: var(--radius-sm);
+    padding: 20px 22px;
+  }
+
+  .done-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1d1d1f;
+    margin-bottom: 4px;
+  }
+
+  .done-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    background: var(--text-primary);
+    color: #fff;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .dl-btn:hover { opacity: 0.8; }
+
+  .dl-btn-ghost {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  .dl-btn-ghost:hover { background: rgba(0,0,0,0.04); opacity: 1; }
+
+  .rss-hint {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: rgba(0,0,0,0.03);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+  .rss-hint code {
+    font-family: "SF Mono", ui-monospace, monospace;
+    font-size: 11px;
+    background: rgba(0,0,0,0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    user-select: all;
+  }
+  .rss-icon { font-size: 20px; }
+
+  /* ─── Error ─── */
+  #error-panel {
+    display: none;
+    margin-top: 16px;
+    background: rgba(255,59,48,0.06);
+    border: 1px solid rgba(255,59,48,0.2);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    font-size: 13px;
+    color: #c0392b;
+    line-height: 1.5;
+  }
+
+  /* ─── Footer ─── */
+  .footer-note {
+    margin-top: 32px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    z-index: 1;
+  }
+
+  /* Feedback Drawer */
+  .drawer-tab {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--text-primary);
+    color: #fff;
+    border-radius: 12px 12px 0 0;
+    padding: 10px 24px 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 100;
+    transition: background 0.2s;
+    user-select: none;
+  }
+  .drawer-tab:hover { background: #333; }
+  .drawer-tab .arrow { transition: transform 0.3s; display: inline-block; font-size: 11px; }
+  .drawer-tab.open .arrow { transform: rotate(180deg); }
+
+  .drawer {
+    position: fixed;
+    bottom: -380px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 560px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 20px 20px 0 0;
+    padding: 28px 32px 32px;
+    z-index: 99;
+    transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.08);
+  }
+  .drawer.open { bottom: 0; }
+  .drawer-title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .drawer-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+
+  .story-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 130px;
+    overflow-y: auto;
+    margin-bottom: 16px;
+  }
+  .story-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  .story-option:hover { background: rgba(0,0,0,0.02); }
+  .story-option.selected { border-color: rgba(100,130,255,0.5); background: rgba(100,130,255,0.06); }
+  .story-option input[type=checkbox] { accent-color: #6b8cff; flex-shrink: 0; }
+  .story-date { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+  .drawer textarea { width: 100%; height: 80px; margin-bottom: 14px; }
+  .drawer-submit {
+    width: 100%;
+    padding: 13px;
+    background: var(--text-primary);
+    color: #fff;
+    border: none;
+    border-radius: 50px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .drawer-submit:hover { opacity: 0.8; }
+  .drawer-submit:disabled { opacity: 0.4; cursor: not-allowed; }
+  .feedback-toast { display: none; margin-top: 12px; font-size: 13px; color: #34c759; text-align: center; }
+
+</style>
+</head>
+<body>
+
+<div class="card">
+  <p class="eyebrow">HN Daily</p>
+  <h1>Make my<br><strong>podcast.</strong></h1>
+  <p class="subtitle">Two stories from today's Hacker News, turned into a ~15 minute audio briefing.</p>
+
+  <div class="field">
+    <label for="interests">Interests of the day</label>
+    <input type="text" id="interests" placeholder="AI, open source, privacy…" autocomplete="off" />
+    <p class="field-hint">Optional — guides which stories get picked.</p>
+  </div>
+
+  <div class="field">
+    <label for="feedback">Feedback &amp; preferences</label>
+    <textarea id="feedback" placeholder="e.g. Yesterday's second segment was too technical. I prefer more narrative-driven coverage…"></textarea>
+    <p class="field-hint">Optional — shapes your listener profile over time.</p>
+  </div>
+
+  <div class="btn-wrap" id="btn-wrap">
+    <button id="generate" onclick="startGeneration()">
+      <span class="btn-icon">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1v6H2M8 1l3 3M8 1L5 4M14 8a6 6 0 1 1-12 0" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </span>
+      <span id="btn-label">Generate podcast</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+  </div>
+
+  <div id="status-panel">
+    <p class="status-label">Progress</p>
+    <div class="step-list" id="step-list"></div>
+  </div>
+
+  <div id="done-panel">
+    <p class="done-title">✓ Your podcast is ready</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+      <a href="/outputs/podcast.mp3" download="podcast.mp3" class="dl-btn">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download MP3
+      </a>
+      <a href="/outputs/podcast_source.md" download="podcast_source.md" class="dl-btn dl-btn-ghost">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v8M4 6l3 3 3-3M2 11h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Download Briefing
+      </a>
+    </div>
+    <div class="rss-hint">
+      <span class="rss-icon">📻</span>
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--text-primary)">Subscribe in Apple Podcasts or Overcast</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Add URL: <code>http://10.48.17.144:5000/feed.xml</code></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="error-panel" id="error-panel"></div>
+</div>
+
+<p class="footer-note">Powered by Claude · ~$0.08 per run</p>
+
+<script>
+const STEPS = [
+  { id: "fetch",    label: "Fetching front page",         detail: "Pulling today's top HN stories via Algolia" },
+  { id: "select",   label: "Selecting stories",           detail: "Claude picks 2 that match your interests" },
+  { id: "briefing", label: "Generating briefing docs",    detail: "Deep-dive research on each story + comments" },
+  { id: "script",   label: "Writing the script",          detail: "Jordan & Alex dialogue, ~1800 words" },
+  { id: "tts",      label: "Synthesizing audio",          detail: "OpenAI TTS, two voices, merged to MP3" },
+  { id: "done",     label: "Saving to outputs/",          detail: "podcast.mp3 · podcast_source.md · podcast_script.txt" },
+];
+
+let stepEls = {};
+
+function buildSteps() {
+  const list = document.getElementById("step-list");
+  list.innerHTML = "";
+  stepEls = {};
+  STEPS.forEach(s => {
+    const el = document.createElement("div");
+    el.className = "step";
+    el.id = "step-" + s.id;
+    el.innerHTML = `
+      <div class="step-dot"></div>
+      <div>
+        <div class="step-text">${s.label}</div>
+        <div class="step-detail">${s.detail}</div>
+      </div>`;
+    list.appendChild(el);
+    stepEls[s.id] = el;
+  });
+}
+
+function setStep(id, state) { // state: "active" | "done"
+  const el = stepEls[id];
+  if (!el) return;
+  el.classList.remove("active", "done");
+  el.classList.add(state);
+}
+
+async function startGeneration() {
+  const interests = document.getElementById("interests").value.trim();
+  const feedback  = document.getElementById("feedback").value.trim();
+  const btn       = document.getElementById("generate");
+  const spinner   = document.getElementById("spinner");
+  const btnLabel  = document.getElementById("btn-label");
+  const btnWrap   = document.getElementById("btn-wrap");
+
+  // Reset UI
+  document.getElementById("done-panel").style.display = "none";
+  document.getElementById("error-panel").style.display = "none";
+  document.getElementById("status-panel").style.display = "block";
+  buildSteps();
+
+  btn.disabled = true;
+  spinner.style.display = "block";
+  btnLabel.textContent = "Generating…";
+  btnWrap.classList.add("active");
+
+  try {
+    // SSE stream from the Flask backend
+    const params = new URLSearchParams();
+    if (interests) params.set("interests", interests);
+    if (feedback)  params.set("feedback", feedback);
+
+    const evtSource = new EventSource(`/generate?${params.toString()}`);
+
+    evtSource.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+
+      if (data.type === "step_start") {
+        setStep(data.step, "active");
+      } else if (data.type === "step_done") {
+        setStep(data.step, "done");
+      } else if (data.type === "done") {
+        setStep("done", "done");
+        evtSource.close();
+
+        btn.disabled = false;
+        spinner.style.display = "none";
+        btnLabel.textContent = "Generate podcast";
+        btnWrap.classList.remove("active");
+
+        document.getElementById("done-panel").style.display = "block";
+
+        // Auto-download — append to body, click, remove (works in all browsers)
+        function triggerDownload(href, filename, delay) {
+          setTimeout(() => {
+            const a = document.createElement("a");
+            a.href = href;
+            a.download = filename;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          }, delay);
+        }
+        triggerDownload("/outputs/podcast.mp3",       "podcast.mp3",       300);
+        triggerDownload("/outputs/podcast_source.md", "podcast_source.md", 1200);
+
+      } else if (data.type === "error") {
+        evtSource.close();
+        showError(data.message);
+        resetBtn();
+      }
+    };
+
+    evtSource.onerror = () => {
+      evtSource.close();
+      showError("Connection lost. Check the terminal for details.");
+      resetBtn();
+    };
+
+  } catch (err) {
+    showError(err.message);
+    resetBtn();
+  }
+}
+
+function resetBtn() {
+  const btn    = document.getElementById("generate");
+  const spinner = document.getElementById("spinner");
+  const btnWrap = document.getElementById("btn-wrap");
+  btn.disabled = false;
+  spinner.style.display = "none";
+  document.getElementById("btn-label").textContent = "Generate podcast";
+  btnWrap.classList.remove("active");
+}
+
+function showError(msg) {
+  const el = document.getElementById("error-panel");
+  el.textContent = "⚠ " + msg;
+  el.style.display = "block";
+}
+</script>
+
+<div class="drawer-tab" id="drawer-tab" onclick="toggleDrawer()">
+  <span class="arrow">&#9650;</span>
+  Give feedback
+</div>
+
+<div class="drawer" id="drawer">
+  <p class="drawer-title">Feedback</p>
+  <p class="drawer-sub">Select a story (optional) and tell us what you thought.</p>
+  <div class="story-picker" id="story-picker">
+    <p style="font-size:13px;color:var(--text-tertiary)">Loading stories...</p>
+  </div>
+  <textarea id="feedback-text" placeholder="e.g. The OpenAI story felt too political. The copyright piece was great, want more like that."></textarea>
+  <button class="drawer-submit" id="drawer-submit" onclick="submitFeedback()">Save feedback</button>
+  <p class="feedback-toast" id="feedback-toast">&#10003; Feedback saved &amp; persona updated</p>
+</div>
+
+<script>
+  var drawerOpen = false;
+  var selectedStories = [];
+
+  function toggleDrawer() {
+    drawerOpen = !drawerOpen;
+    document.getElementById('drawer').classList.toggle('open', drawerOpen);
+    document.getElementById('drawer-tab').classList.toggle('open', drawerOpen);
+    if (drawerOpen) loadStories();
+  }
+
+  async function loadStories() {
+    var picker = document.getElementById('story-picker');
+    try {
+      var res = await fetch('/history');
+      var items = await res.json();
+      if (!items.length) {
+        picker.innerHTML = '<p style="font-size:13px;color:var(--text-tertiary)">No stories yet.</p>';
+        return;
+      }
+      picker.innerHTML = items.map(function(item) {
+        var key = item.run_id + '_' + item.title.replace(/[^a-z0-9]/gi,'_');
+        return '<label class="story-option" id="opt-' + key + '">' +
+          '<input type="checkbox" value="' + item.run_id + '" data-title="' + item.title.replace(/"/g,'&quot;') + '" onchange="toggleStory(this)"/>' +
+          '<span style="flex:1">' + item.title + '</span>' +
+          '<span class="story-date">' + item.date + '</span>' +
+          '</label>';
+      }).join('');
+    } catch(e) {
+      picker.innerHTML = '<p style="font-size:13px;color:#c0392b">Could not load stories.</p>';
+    }
+  }
+
+  function toggleStory(checkbox) {
+    var entry = { run_id: checkbox.value, title: checkbox.dataset.title };
+    var label = checkbox.closest('.story-option');
+    if (checkbox.checked) {
+      selectedStories.push(entry);
+      label.classList.add('selected');
+    } else {
+      selectedStories = selectedStories.filter(function(s){ return s.title !== entry.title; });
+      label.classList.remove('selected');
+    }
+  }
+
+  async function submitFeedback() {
+    var text = document.getElementById('feedback-text').value.trim();
+    if (!text) return;
+    var btn = document.getElementById('drawer-submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    var payload = {
+      run_id: selectedStories.length ? selectedStories[0].run_id : '',
+      story_titles: selectedStories.map(function(s){ return s.title; }),
+      feedback: text
+    };
+    try {
+      var res = await fetch('/feedback', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+      var data = await res.json();
+      document.getElementById('feedback-toast').style.display = 'block';
+      document.getElementById('feedback-text').value = '';
+      selectedStories = [];
+      document.querySelectorAll('.story-option input').forEach(function(cb){
+        cb.checked = false;
+        cb.closest('.story-option').classList.remove('selected');
+      });
+      setTimeout(function(){
+        document.getElementById('feedback-toast').style.display = 'none';
+        toggleDrawer();
+      }, 1800);
+    } catch(e) {
+      alert('Error saving feedback.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save feedback';
+    }
+  }
+</script>
+
+</body>
+</html>

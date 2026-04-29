@@ -80,12 +80,12 @@ def _openai_script_to_chunks(
         path = os.path.join(tmp_dir, f"chunk_{i:04d}.mp3")
         print(f"   [{i+1}/{len(script)}] {speaker}: {text[:60]}...")
 
-        response = openai_client.audio.speech.create(
+        with openai_client.audio.speech.with_streaming_response.create(
             model=OPENAI_TTS_MODEL,
             voice=voice,
             input=text,
-        )
-        response.stream_to_file(path)
+        ) as response:
+            response.stream_to_file(path)
         chunk_paths.append(path)
 
     return chunk_paths

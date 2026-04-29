@@ -6,8 +6,12 @@ Pipeline: HN scrape → story selection → briefing → script → TTS → MP3
 
 import re
 import json
+import os
 from datetime import date
 from anthropic import Anthropic
+
+OUTPUTS_DIR = "outputs"
+os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 from hn_scraper import fetch_front_page, fetch_comments, fetch_article_text
 from script_generator import generate_script, print_script
@@ -22,15 +26,15 @@ client = Anthropic()
 # STORY SELECTION
 # ─────────────────────────────────────────────
 
-SELECTION_PROMPT = """You are helping select 2 Hacker News stories for a podcast.
+SELECTION_PROMPT = """You are helping select 1 Hacker News story for a podcast.
 
 USER INTERESTS: {interests}
 
 Today's top HN stories:
 {story_list}
 
-Pick exactly 2 stories that match the user's interests, have strong discussion
-potential, and are varied in topic.
+Pick exactly 1 story that best matches the user's interests, has strong discussion
+potential, and is varied in topic.
 
 Respond with JSON only:
 {{
@@ -140,6 +144,32 @@ def generate_briefing(story, article_text, comments):
     return full_text
 
 
+def generate_briefing_silent(story, article_text, comments):
+    """Non-streaming version for use in Flask/server context."""
+    comments_text = "\n\n".join(
+        f"[{c['author']}]: {c['text']}" for c in comments[:35]
+    )
+    theme_response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=300,
+        messages=[{"role": "user", "content": f"List 4-5 distinct debate themes from these HN comments as bullet points:\n\n{comments_text[:2000]}"}]
+    )
+    comment_themes = theme_response.content[0].text.strip()
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2500,
+        messages=[{"role": "user", "content": BRIEFING_PROMPT.format(
+            title=story["title"],
+            url=story.get("url", "N/A"),
+            article_text=article_text or "(unavailable — use comments as primary source)",
+            comments=comments_text,
+            comment_themes=comment_themes,
+        )}]
+    )
+    return response.content[0].text
+
+
 def websearch_fallback(title, url):
     print("   Article unavailable — using web search fallback...")
     response = client.messages.create(
@@ -202,7 +232,7 @@ User interests: {interests}
 {"---".join(briefings)}"""
 
     # Save briefing doc
-    briefing_path = "podcast_source.md"
+    briefing_path = os.path.join(OUTPUTS_DIR, "podcast_source.md")
     with open(briefing_path, "w") as f:
         f.write(combined)
     print(f"\n💾 Briefing saved to: {briefing_path}")
@@ -212,14 +242,14 @@ User interests: {interests}
     print_script(script)
 
     # Save script as text for review
-    script_path = "podcast_script.txt"
+    script_path = os.path.join(OUTPUTS_DIR, "podcast_script.txt")
     with open(script_path, "w") as f:
         for speaker, text in script:
             f.write(f"{speaker}: {text}\n\n")
     print(f"💾 Script saved to: {script_path}")
 
     # 6. Generate audio
-    audio_path = script_to_audio(script, output_path="podcast.mp3")
+    audio_path = script_to_audio(script, output_path=os.path.join(OUTPUTS_DIR, "podcast.mp3"))
 
     print(f"\n✅ Done!")
     print(f"   📄 Briefing : {briefing_path}")
